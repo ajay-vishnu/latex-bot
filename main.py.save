@@ -1,0 +1,81 @@
+import discord
+import subprocess
+from pathlib import Path
+
+client = discord.Client()
+
+888@client.event
+async def on_ready():
+    print(f"We have logged in as {client.user}")
+
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        return
+    
+    if message.content.startswith('$') and message.content.endswith('$'):
+        print("Message recieved, parsing to svg...")
+        await message.channel.send('Parsing...')
+        latexExpression = message.content[1:-1]
+        f = open('tex/expression.tex', 'w')
+        f.write(r"""
+\documentclass[preview]{standalone}
+
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{dsfont}
+\usepackage{setspace}
+\usepackage{tipa}
+\usepackage{relsize}
+\usepackage{textcomp}
+\usepackage{mathrsfs}
+\usepackage{calligra}
+\usepackage{wasysym}
+\usepackage{ragged2e}
+\usepackage{xcolor}
+\usepackage{microtype}
+\DisableLigatures{encoding = *, family = * }
+\linespread{1}
+
+\begin{document}
+
+\textcolor{white}{
+\begin{align*}
+""")
+        f.close()
+        f = open('tex/expression.tex', 'a')
+        f.write(latexExpression)
+        f.write(r"""
+\end{align*}
+}
+\end{document}
+        """)
+        f.close()
+    
+     bashCommand1 = "pdflatex -output-directory=tex tex/expression.tex"
+        bashCommand2 = "pdfcrop --margins 1 tex/expression.pdf tex/expression.pdf"
+        bashCommand3 = "dvisvgm --pdf --stdout tex/expression.pdf"
+        bashCommand4 = "inkscape --export-type=png --export-dpi=200 --export-background-opacity=0 --export-filename=png/expression.png svg/expression.svg"
+        process = subprocess.Popen(bashCommand1.split())
+        output, error = process.communicate()
+        process.terminate()
+        print("Cropping pdf...")
+        process = subprocess.Popen(bashCommand2.split())
+        output, error = process.communicate()
+        process.terminate()
+        process = subprocess.Popen(bashCommand3.split(), stdout=open('svg/expression.svg', 'w'))
+        output, error = process.communicate()
+        process.terminate()
+        process = subprocess.Popen(bashCommand4.split())
+        output, error = process.communicate()
+        process.terminate()
+        if Path("svg/expression.svg").stat().st_size == 0:
+            await message.channel.send("Invalid Latex Syntax.")
+        else:
+            await message.channel.send(file=discord.File(r"png/expression.png"))
+
+client.run("ODMyODc4MDUzNzQ2NTQwNTQ0.YHqMIg.Vdyvqg4J-d7JPdNDENX5mCFuJKg")
